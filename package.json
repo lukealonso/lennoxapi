@@ -1,6 +1,6 @@
 {
   "name": "lennoxapi",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "TypeScript API for Lennox S30/S40/E30/M30 thermostats (LAN connection)",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -40,7 +40,7 @@
     "typescript": "^5.3.3"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "^20.0.0 || ^22.0.0 || ^24.0.0"
   },
   "files": [
     "dist/**/*"
