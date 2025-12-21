@@ -19,8 +19,16 @@
     "hvac",
     "home-automation"
   ],
-  "author": "",
+  "author": "Luke Alonso",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lukealonso/lennoxapi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lukealonso/lennoxapi/issues"
+  },
+  "homepage": "https://github.com/lukealonso/lennoxapi#readme",
   "dependencies": {
     "undici": "^6.0.0"
   },
