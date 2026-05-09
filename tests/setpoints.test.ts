@@ -35,6 +35,8 @@ describe('Temperature Setpoints', () => {
       expect(system.singleSetpointMode).toBe(false);
 
       const publishSpy = jest.spyOn(api, 'publishMessage').mockResolvedValue();
+      const updateCallback = jest.fn();
+      zone.registerOnUpdateCallback(updateCallback, ['hsp', 'hspC', 'csp', 'cspC']);
       
       await zone.performSetpoint({ hsp: 74 });
       
@@ -50,6 +52,11 @@ describe('Temperature Setpoints', () => {
       // CSP should be maintained at current value since 77 > 74 + 3
       expect(period.csp).toBe(77);
       expect(period.cspC).toBe(25.0);
+      expect(zone.hsp).toBe(74);
+      expect(zone.hspC).toBe(23.5);
+      expect(zone.csp).toBe(77);
+      expect(zone.cspC).toBe(25.0);
+      expect(updateCallback).toHaveBeenCalledTimes(1);
     });
 
     it('should adjust cool setpoint when heat setpoint is too close', async () => {
@@ -206,6 +213,8 @@ describe('Temperature Setpoints', () => {
       expect(system.singleSetpointMode).toBe(true);
 
       const publishSpy = jest.spyOn(api, 'publishMessage').mockResolvedValue();
+      const updateCallback = jest.fn();
+      zone.registerOnUpdateCallback(updateCallback, ['sp', 'spC']);
       
       await zone.performSetpoint({ sp: 78 });
       
@@ -218,6 +227,9 @@ describe('Temperature Setpoints', () => {
       const period = schedules[0].schedule.periods[0].period;
       expect(period.sp).toBe(78);
       expect(period.spC).toBe(25.5);
+      expect(zone.sp).toBe(78);
+      expect(zone.spC).toBe(25.5);
+      expect(updateCallback).toHaveBeenCalledTimes(1);
     });
 
     it('should set single setpoint in celsius', async () => {
@@ -300,4 +312,3 @@ describe('Humidity Setpoints', () => {
     expect(period.desp).toBe(55);
   });
 });
-

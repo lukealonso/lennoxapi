@@ -578,6 +578,8 @@ export class LennoxZone {
     };
 
     await this.system.api.publishMessage(this.system.sysId, data);
+    this.processPeriod(period);
+    this.executeOnUpdateCallbacks();
   }
 
   /**
@@ -609,6 +611,8 @@ export class LennoxZone {
     };
 
     await this.system.api.publishMessage(this.system.sysId, data);
+    this.processPeriod(period);
+    this.executeOnUpdateCallbacks();
   }
 
   /**
@@ -648,6 +652,8 @@ export class LennoxZone {
 
     const scheduleId = this.getSetpointScheduleId();
     await this.system.setHVACMode(mode, scheduleId);
+    this.processPeriod({ systemMode: mode });
+    this.executeOnUpdateCallbacks();
   }
 
   /**
@@ -664,6 +670,8 @@ export class LennoxZone {
 
     const scheduleId = this.getSetpointScheduleId();
     await this.system.setFanMode(mode, scheduleId);
+    this.processPeriod({ fanMode: mode });
+    this.executeOnUpdateCallbacks();
   }
 
   /**
@@ -703,6 +711,8 @@ export class LennoxZone {
 
     const scheduleId = this.getSetpointScheduleId();
     await this.system.setHumidityMode(mode, scheduleId);
+    this.processPeriod({ humidityMode: mode });
+    this.executeOnUpdateCallbacks();
   }
 
   /**
@@ -719,6 +729,8 @@ export class LennoxZone {
     };
 
     await this.system.api.publishMessage(this.system.sysId, data);
+    this.processMessage(data.zones[0]);
+    this.executeOnUpdateCallbacks();
   }
 
   /**
@@ -735,6 +747,8 @@ export class LennoxZone {
     };
 
     await this.system.api.publishMessage(this.system.sysId, data);
+    this.processMessage(data.zones[0]);
+    this.executeOnUpdateCallbacks();
   }
 
   /**
@@ -760,6 +774,7 @@ export class LennoxZone {
     };
 
     await this.system.api.publishMessage(this.system.sysId, data);
+    this.processMessage(data.zones[0]);
+    this.executeOnUpdateCallbacks();
   }
 }
-

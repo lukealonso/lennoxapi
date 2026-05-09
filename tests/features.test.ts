@@ -20,6 +20,9 @@ describe('Ventilation', () => {
 
   it('should turn ventilation on', async () => {
     const publishSpy = jest.spyOn(api, 'publishMessage').mockResolvedValue();
+    const updateCallback = jest.fn();
+    system.ventilationMode = 'off';
+    system.registerOnUpdateCallback(updateCallback, ['ventilationMode']);
 
     await system.ventilationOn();
 
@@ -29,6 +32,8 @@ describe('Ventilation', () => {
     expect(data.system).toBeDefined();
     const sysConfig = (data.system as { config: { ventilationMode: string } }).config;
     expect(sysConfig.ventilationMode).toBe('on');
+    expect(system.ventilationMode).toBe('on');
+    expect(updateCallback).toHaveBeenCalledTimes(1);
   });
 
   it('should turn ventilation off', async () => {
@@ -87,6 +92,9 @@ describe('Allergen Defender', () => {
 
   it('should turn allergen defender on', async () => {
     const publishSpy = jest.spyOn(api, 'publishMessage').mockResolvedValue();
+    const updateCallback = jest.fn();
+    system.allergenDefender = false;
+    system.registerOnUpdateCallback(updateCallback, ['allergenDefender']);
 
     await system.allergenDefenderOn();
 
@@ -95,6 +103,8 @@ describe('Allergen Defender', () => {
     
     const sysConfig = (data.system as { config: { allergenDefender: boolean } }).config;
     expect(sysConfig.allergenDefender).toBe(true);
+    expect(system.allergenDefender).toBe(true);
+    expect(updateCallback).toHaveBeenCalledTimes(1);
   });
 
   it('should turn allergen defender off', async () => {
@@ -235,10 +245,14 @@ describe('Fan Mode', () => {
 
   it('should set fan mode to on', async () => {
     const publishSpy = jest.spyOn(api, 'publishMessage').mockResolvedValue();
+    const updateCallback = jest.fn();
+    zone.registerOnUpdateCallback(updateCallback, ['fanMode']);
 
     await zone.setFanMode('on');
 
     expect(publishSpy).toHaveBeenCalledTimes(1);
+    expect(zone.fanMode).toBe('on');
+    expect(updateCallback).toHaveBeenCalledTimes(1);
   });
 
   it('should set fan mode to auto', async () => {
@@ -294,10 +308,14 @@ describe('HVAC Mode', () => {
 
   it('should set HVAC mode to heat', async () => {
     const publishSpy = jest.spyOn(api, 'publishMessage').mockResolvedValue();
+    const updateCallback = jest.fn();
+    zone.registerOnUpdateCallback(updateCallback, ['systemMode']);
 
     await zone.setHVACMode('heat');
 
     expect(publishSpy).toHaveBeenCalledTimes(1);
+    expect(zone.systemMode).toBe('heat');
+    expect(updateCallback).toHaveBeenCalledTimes(1);
   });
 
   it('should set HVAC mode to cool', async () => {
@@ -417,4 +435,3 @@ describe('Humidity Mode', () => {
     await expect(zone.setHumidityMode('invalid')).rejects.toThrow();
   });
 });
-

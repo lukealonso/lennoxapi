@@ -29,9 +29,6 @@
     "url": "https://github.com/lukealonso/lennoxapi/issues"
   },
   "homepage": "https://github.com/lukealonso/lennoxapi#readme",
-  "dependencies": {
-    "undici": "^6.0.0"
-  },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^20.11.0",
@@ -46,4 +43,3 @@
     "dist/**/*"
   ]
 }
-

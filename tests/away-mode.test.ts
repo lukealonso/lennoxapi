@@ -19,6 +19,9 @@ describe('Away Mode', () => {
   describe('Manual Away Mode', () => {
     it('should set manual away mode to true', async () => {
       const publishSpy = jest.spyOn(api, 'publishMessage').mockResolvedValue();
+      const updateCallback = jest.fn();
+      system.manualAwayMode = false;
+      system.registerOnUpdateCallback(updateCallback, ['manualAwayMode']);
 
       await system.setManualAwayMode(true);
 
@@ -28,10 +31,15 @@ describe('Away Mode', () => {
       expect(data.occupancy).toBeDefined();
       const occupancy = data.occupancy as { manualAway: boolean };
       expect(occupancy.manualAway).toBe(true);
+      expect(system.manualAwayMode).toBe(true);
+      expect(updateCallback).toHaveBeenCalledTimes(1);
     });
 
     it('should set manual away mode to false', async () => {
       const publishSpy = jest.spyOn(api, 'publishMessage').mockResolvedValue();
+      const updateCallback = jest.fn();
+      system.manualAwayMode = true;
+      system.registerOnUpdateCallback(updateCallback, ['manualAwayMode']);
 
       await system.setManualAwayMode(false);
 
@@ -41,6 +49,8 @@ describe('Away Mode', () => {
       expect(data.occupancy).toBeDefined();
       const occupancy = data.occupancy as { manualAway: boolean };
       expect(occupancy.manualAway).toBe(false);
+      expect(system.manualAwayMode).toBe(false);
+      expect(updateCallback).toHaveBeenCalledTimes(1);
     });
 
     it('should report manual away mode status correctly', () => {
@@ -114,4 +124,3 @@ describe('Away Mode', () => {
     });
   });
 });
-

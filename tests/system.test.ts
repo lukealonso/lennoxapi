@@ -57,6 +57,19 @@ describe('System Configuration', () => {
     it('should have zones loaded', () => {
       expect(system.zones.length).toBeGreaterThan(0);
     });
+
+    it('should route unknown sender updates to the local system', () => {
+      const callback = jest.fn();
+      system.manualAwayMode = false;
+      system.registerOnUpdateCallback(callback, ['manualAwayMode']);
+
+      const message = loadFile('manual_away_mode_on.json');
+      api.processMessage(message);
+
+      expect(system.manualAwayMode).toBe(true);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(api.getSystem(message.SenderID!)).toBeUndefined();
+    });
   });
 
   describe('M30 Configuration', () => {
@@ -561,4 +574,3 @@ describe('Temperature Conversions', () => {
     expect(system.farenRound(70.7)).toBe(71);
   });
 });
-

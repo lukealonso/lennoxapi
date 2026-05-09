@@ -1,8 +1,15 @@
 /**
  * S30 API - Local LAN connection to Lennox thermostats
+ *
+ * Uses Node's built-in http/https modules instead of undici.
+ * The Lennox S30/S40 sends HTTP responses with both Content-Length
+ * and Transfer-Encoding headers, which violates RFC 7230 §3.3.2.
+ * Undici v6+ rejects these responses; the built-in http module with
+ * insecureHTTPParser:true handles them correctly.
  */
 
-import { Agent, fetch, Response } from 'undici';
+import http from 'http';
+import https from 'https';
 import { S30Exception, ErrorCodes } from './exceptions';
 import { LennoxSystem } from './system';
 import {
@@ -16,6 +23,14 @@ import {
 const APPLICATION_ID_PREFIX = 'mapp0793723676444670468270';
 
 /**
+ * Parsed HTTP response
+ */
+interface HttpResponse {
+  status: number;
+  body: string;
+}
+
+/**
  * S30API - Main API class for communicating with Lennox S30/E30/M30/S40 thermostats
  */
 export class S30API {
@@ -24,7 +39,6 @@ export class S30API {
   private readonly protocol: 'http' | 'https';
   private readonly timeout: number;
   private readonly longPollDelay: number;
-  private readonly dispatcher: Agent;
 
   // URL endpoints
   private readonly urlLogin: string;
@@ -52,14 +66,6 @@ export class S30API {
       this.applicationId = APPLICATION_ID_PREFIX.slice(0, -timestamp.length) + timestamp;
     }
 
-    // Create dispatcher that bypasses SSL certificate validation
-    // (Lennox thermostats use self-signed certificates)
-    this.dispatcher = new Agent({
-      connect: {
-        rejectUnauthorized: false,
-      },
-    });
-
     // Initialize URLs
     this.urlLogin = `${this.protocol}://${this.ipAddress}/Endpoints/${this.applicationId}/Connect`;
     this.urlRetrieve = `${this.protocol}://${this.ipAddress}/Messages/${this.applicationId}/Retrieve`;
@@ -76,33 +82,70 @@ export class S30API {
   }
 
   /**
-   * HTTP POST helper with SSL bypass
+   * Perform an HTTP request using Node's built-in http/https module.
+   * Uses insecureHTTPParser:true to handle the Lennox S30's non-compliant
+   * responses (Content-Length + Transfer-Encoding).
    */
-  async post(url: string, body?: string | null): Promise<Response> {
-    try {
-      return await fetch(url, {
-        method: 'POST',
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
-        body: body ?? undefined,
-        dispatcher: this.dispatcher,
+  private async request(url: string, method: 'GET' | 'POST', body?: string): Promise<HttpResponse> {
+    return new Promise<HttpResponse>((resolve, reject) => {
+      const parsed = new URL(url);
+      const isHttps = parsed.protocol === 'https:';
+      const lib = isHttps ? https : http;
+
+      const options: https.RequestOptions = {
+        hostname: parsed.hostname,
+        port: parsed.port || (isHttps ? 443 : 80),
+        path: parsed.pathname + parsed.search,
+        method,
+        rejectUnauthorized: false,  // Lennox uses self-signed certs
+        insecureHTTPParser: true,   // Lennox sends Content-Length + Transfer-Encoding
+        headers: {},
+      };
+
+      if (body !== undefined) {
+        (options.headers as Record<string, string | number>)["Content-Type"] = 'application/json';
+        (options.headers as Record<string, string | number>)["Content-Length"] = Buffer.byteLength(body);
+      }
+
+      const req = lib.request(options, (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => {
+          resolve({
+            status: res.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString('utf-8'),
+          });
+        });
       });
-    } catch (error) {
-      throw S30Exception.fromCommError(error as Error, 'POST', url);
-    }
+
+      req.on('error', (err) => {
+        reject(S30Exception.fromCommError(err, method, url));
+      });
+
+      // Set a generous timeout for long-polling (the S30 holds connections open up to longPollDelay seconds)
+      req.setTimeout((this.longPollDelay + 30) * 1000, () => {
+        req.destroy(new Error('Request timed out'));
+      });
+
+      if (body !== undefined) {
+        req.write(body);
+      }
+      req.end();
+    });
   }
 
   /**
-   * HTTP GET helper with SSL bypass
+   * HTTP POST helper
    */
-  async get(url: string): Promise<Response> {
-    try {
-      return await fetch(url, {
-        method: 'GET',
-        dispatcher: this.dispatcher,
-      });
-    } catch (error) {
-      throw S30Exception.fromCommError(error as Error, 'GET', url);
-    }
+  async post(url: string, body?: string | null): Promise<HttpResponse> {
+    return this.request(url, 'POST', body ?? undefined);
+  }
+
+  /**
+   * HTTP GET helper
+   */
+  async get(url: string): Promise<HttpResponse> {
+    return this.request(url, 'GET');
   }
 
   /**
@@ -171,6 +214,27 @@ export class S30API {
    */
   getSystem(sysId: string): LennoxSystem | undefined {
     return this.systems.find(s => s.sysId === sysId);
+  }
+
+  /**
+   * Resolve the system that should receive an incoming message.
+   *
+   * Local LAN connections are represented as the synthetic "LCC" system, but
+   * some thermostats still send update messages with their cloud sysId. Keep
+   * those updates on the local system so existing callbacks fire.
+   */
+  private getSystemForMessage(senderId: string): LennoxSystem {
+    const existingSystem = this.getSystem(senderId);
+    if (existingSystem) {
+      return existingSystem;
+    }
+
+    const localSystem = this.getSystem('LCC');
+    if (localSystem) {
+      return localSystem;
+    }
+
+    return this.getOrCreateSystem(senderId);
   }
 
   /**
@@ -254,11 +318,10 @@ export class S30API {
 
     try {
       const response = await this.post(this.urlRequestData, JSON.stringify(message));
-      const respText = await response.text();
       
       if (response.status !== 200 && response.status !== 204) {
         throw new S30Exception(
-          `RequestData failed: status=[${response.status}] text=[${respText}]`,
+          `RequestData failed: status=[${response.status}] text=[${response.body}]`,
           ErrorCodes.EC_REQUEST_DATA_HELPER,
           1
         );
@@ -294,20 +357,18 @@ export class S30API {
       }
 
       if (response.status !== 200) {
-        const text = await response.text();
         throw new S30Exception(
-          `Retrieve failed: status=[${response.status}] text=[${text}]`,
+          `Retrieve failed: status=[${response.status}] text=[${response.body}]`,
           ErrorCodes.EC_HTTP_ERR,
           1
         );
       }
 
-      const text = await response.text();
-      if (!text || text.trim() === '') {
+      if (!response.body || response.body.trim() === '') {
         return false;
       }
       
-      const data = JSON.parse(text) as RetrieveResponse;
+      const data = JSON.parse(response.body) as RetrieveResponse;
       
       if (!data.messages || data.messages.length === 0) {
         return false;
@@ -339,7 +400,7 @@ export class S30API {
       return;
     }
 
-    const system = this.getOrCreateSystem(senderId);
+    const system = this.getSystemForMessage(senderId);
     
     if (message.Data) {
       system.processMessage(message.Data as Record<string, unknown>);
@@ -402,9 +463,8 @@ export class S30API {
       const response = await this.post(this.urlPublish, JSON.stringify(message));
 
       if (response.status !== 200 && response.status !== 204) {
-        const text = await response.text();
         throw new S30Exception(
-          `Publish failed: status=[${response.status}] text=[${text}]`,
+          `Publish failed: status=[${response.status}] text=[${response.body}]`,
           ErrorCodes.EC_PUBLISH_MESSAGE,
           1
         );
@@ -516,4 +576,3 @@ export class S30API {
     await this.publishMessage(sysId, data);
   }
 }
-

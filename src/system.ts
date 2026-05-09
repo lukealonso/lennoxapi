@@ -569,6 +569,11 @@ export class LennoxSystem {
    */
   async setManualAwayMode(mode: boolean): Promise<void> {
     await this.api.setManualAwayMode(this.sysId, mode);
+    this.processMessage({
+      occupancy: {
+        manualAway: mode,
+      },
+    });
   }
 
   /**
@@ -576,6 +581,15 @@ export class LennoxSystem {
    */
   async cancelSmartAway(): Promise<void> {
     await this.api.cancelSmartAway(this.sysId);
+    this.processMessage({
+      occupancy: {
+        smartAway: {
+          config: {
+            cancel: true,
+          },
+        },
+      },
+    });
   }
 
   /**
@@ -583,6 +597,15 @@ export class LennoxSystem {
    */
   async enableSmartAway(mode: boolean): Promise<void> {
     await this.api.enableSmartAway(this.sysId, mode);
+    this.processMessage({
+      occupancy: {
+        smartAway: {
+          config: {
+            enabled: mode,
+          },
+        },
+      },
+    });
   }
 
   /**
@@ -618,6 +641,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -632,6 +656,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -646,6 +671,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -660,6 +686,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -674,6 +701,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -688,6 +716,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -704,6 +733,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -718,6 +748,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -739,6 +770,7 @@ export class LennoxSystem {
       },
     };
     await this.api.publishMessage(this.sysId, data);
+    this.processMessage(data);
   }
 
   /**
@@ -806,4 +838,3 @@ export class LennoxSystem {
     return this.farenRound(tempF);
   }
 }
-
